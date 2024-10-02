@@ -24,7 +24,7 @@ open import Data.List.Correspondences.Unary.Related
 open import Data.List.Correspondences.Binary.Perm
 open import Data.List.Correspondences.Binary.OPE
 
-module KVList 
+module KVList
   {ℓᵏ ℓᵛ ℓ : Level}
   {K< : StrictPoset ℓᵏ ℓ}
   {V : 𝒰 ℓᵛ}
@@ -43,7 +43,7 @@ module KVList
       lt⇒ nothing
       eq⇒ just v₀
       gt⇒ lookup-kv k xs
-      
+
   upsert-kv : (V → V → V) → K → V → List (K × V) → List (K × V)
   upsert-kv f k v      []            = (k , v) ∷ []
   upsert-kv f k v xs₀@((x , w) ∷ xs) =
@@ -57,7 +57,7 @@ module KVList
   remove-kv k xs₀@((x , v) ∷ xs) =
     caseᵗ k >=< x
       lt⇒ xs₀
-      eq⇒ xs 
+      eq⇒ xs
       gt⇒ ((x , v) ∷ remove-kv k xs)
 
   union-kv : (V → V → V) → List (K × V) → List (K × V) → List (K × V)
@@ -65,18 +65,18 @@ module KVList
   union-kv f xs₀@(_ ∷ _)               []              = xs₀
   union-kv f xs₀@((kx , vx) ∷ xs) ys₀@((ky , vy) ∷ ys) =
     caseᵗ kx >=< ky
-      lt⇒ ((kx , vx) ∷ union-kv f xs ys₀) 
-      eq⇒ ((kx , f vx vy) ∷ union-kv f xs ys) 
-      gt⇒ ((ky , vy) ∷ union-kv f xs₀ ys) 
+      lt⇒ ((kx , vx) ∷ union-kv f xs ys₀)
+      eq⇒ ((kx , f vx vy) ∷ union-kv f xs ys)
+      gt⇒ ((ky , vy) ∷ union-kv f xs₀ ys)
 
   inter-kv : (V → V → V) → List (K × V) → List (K × V) → List (K × V)
   inter-kv f      []                   _               = []
   inter-kv f     (_ ∷ _)               []              = []
   inter-kv f xs₀@((kx , vx) ∷ xs) ys₀@((ky , vy) ∷ ys) =
     caseᵗ kx >=< ky
-      lt⇒ (inter-kv f xs ys₀) 
-      eq⇒ ((kx , f vx vy) ∷ inter-kv f xs ys) 
-      gt⇒ (inter-kv f xs₀ ys) 
+      lt⇒ (inter-kv f xs ys₀)
+      eq⇒ ((kx , f vx vy) ∷ inter-kv f xs ys)
+      gt⇒ (inter-kv f xs₀ ys)
 
   keys : List (K × V) → List K
   keys = map fst
@@ -136,7 +136,7 @@ module KVList
                             else k ∷ k′ ∷ keys xs))
       then
         elimᵇ {P = λ q → has ⦃ d = Tri→discrete ⦄ k (keys xs) ＝ q
-                       → Perm (k ∷ k′ ∷ keys xs) 
+                       → Perm (k ∷ k′ ∷ keys xs)
                               (if q then k′ ∷ keys xs else k ∷ k′ ∷ keys xs)}
               (λ ∈?k → let ∈k = so→true! ⦃ Reflects-has ⦃ d = Tri→discrete ⦄ {xs = keys xs} ⦄ $ so≃is-true ⁻¹ $ ∈?k in
                         absurd (k′≮k $ All→∀Has (related→all r) k ∈k))
@@ -175,7 +175,7 @@ module KVList
   ... | eq _    k=k′ _    = ∷ˢ (subst (λ q → Related _<_ q (keys xs)) (k=k′ ⁻¹) r)
   ... | gt _    _    k′<k =
     ∷ˢ (sorted-at0→related
-         (Is-kvlist-upsert {f = f} {k = k} {v = v}  {xs = xs} (related→sorted r))
+         (Is-kvlist-upsert {f = f} {k = k} {v = v} {xs = xs} (related→sorted r))
          (all→atweak
             (perm-all (perm-sym (kvlist-upsert-perm (related→sorted r))) $
              let ra = related→all r in
@@ -201,7 +201,7 @@ module KVList
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | lt k<k₀ _    _    | eq _     k′=k  _    =
     given-lt (subst (_< k₀) (k′=k ⁻¹) k<k₀)
       return (λ q → just v ＝ recᵐ (just v) (just ∘ flip f v) (recᵗ nothing (just v₀) (lookup-kv k′ xs) q))
-      then refl 
+      then refl
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | lt k<k₀ _    _    | gt _     _     _    = refl
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | eq _    k=k₀ _    with d .is-trichotomous.trisect k′ k
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | eq _    k=k₀ _    | lt k′<k  _     _    =
@@ -241,7 +241,7 @@ module KVList
   kvlist-remove-keys : {k : K} {xs : List (K × V)}
                      → Is-kvlist xs
                      → keys (remove-kv k xs) ＝ filter (λ x → not ⌊ _≟_ ⦃ Tri→discrete ⦄ k x ⌋) (keys xs)
-  kvlist-remove-keys {k} {xs = []}              _     = refl 
+  kvlist-remove-keys {k} {xs = []}              _     = refl
   kvlist-remove-keys {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) with d .is-trichotomous.trisect k k₀
   ... | lt k<k₀ _ _ =
     ap (k₀ ∷_) $
@@ -269,6 +269,8 @@ module KVList
 
   -- TODO Is-kvlist-remove
 
+  -- TODO kvlist-remove-lookup
+
   -- union
 
   kvlist-union-perm-aux : {f : V → V → V} (xs ys : List (K × V))
@@ -279,56 +281,63 @@ module KVList
   kvlist-union-perm-aux     []                ys               a         _       _      = peq (filter-true (keys ys) ⁻¹)
   kvlist-union-perm-aux     ((kx , vx) ∷ xs)  []               a         _       _      = pprep refl (peq (++-id-r (keys xs) ⁻¹))
   kvlist-union-perm-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) (acc rec) (∷ˢ rx) (∷ˢ ry) with d .is-trichotomous.trisect kx ky
-  ... | lt x<y _ _ = let ih = kvlist-union-perm-aux {f = f} xs ((ky , vy) ∷ ys)
-                                              (rec (xs ++ (ky , vy) ∷ ys) <-ascend)
-                                              (related→sorted rx) (∷ˢ ry)
-                         ay = All→∀Has (related→all ry) in
-                      pprep refl
-                        (ptrans ih
-                           (perm-cat-2l {zs = keys xs}
-                              (peq (ap (λ q → if not (has ⦃ d = Tri→discrete ⦄ ky (keys xs)) then ky ∷ q else q)
-                                       (filter-has-eq {xs = keys ys}
-                                          λ z hz → ap not (given-lt <-trans x<y (ay z hz)
-                                                             return (λ q → has ⦃ d = Tri→discrete ⦄ z (keys xs) ＝ ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ z (keys xs))
-                                                             then refl))))))
-  ... | eq _ x=y _ = let ih = kvlist-union-perm-aux {f = f} xs ys
-                                              (rec (xs ++ ys) (<-suc-r (subst (length (xs ++ ys) <ⁿ_)
-                                                                              (  ap suc (++-length xs ys)
-                                                                               ∙ +-suc-r (length xs) (length ys) ⁻¹
-                                                                               ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
-                                                                              <-ascend)))
-                                              (related→sorted rx) (related→sorted ry) 
-                         ay = All→∀Has (related→all ry) in
-                      pprep refl
-                        (ptrans ih
-                          (perm-cat-2l {zs = keys xs}
-                             (peq (filter-has-eq {xs = keys ys}
-                                     λ z hz → ap not (given-lt subst (_< z) (x=y ⁻¹) (ay z hz)
-                                                        return (λ q → has ⦃ d = Tri→discrete ⦄ z (keys xs) ＝ ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ z (keys xs))
-                                                        then refl)))))
-  ... | gt x≮y _ _ = let ih = kvlist-union-perm-aux {f = f} ((kx , vx) ∷ xs) ys
-                                             (rec (((kx , vx) ∷ xs) ++ ys)
-                                                  (s<s (subst (length (xs ++ ys) <ⁿ_)
-                                                              (  ap suc (++-length xs ys)
-                                                               ∙ +-suc-r (length xs) (length ys) ⁻¹
-                                                               ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
-                                                              <-ascend)))
-                                             (∷ˢ rx) (related→sorted ry)
-                         ax = All→∀Has (related→all rx) in
-                      ptrans (ptrans (pprep {x = ky} refl ih)
-                                     (perm-cons-cat-commassoc {xs = kx ∷ keys xs}))
-                             (perm-cat-2l {zs = kx ∷ keys xs}
-                                (subst (λ q → Perm (ky ∷ filter (λ ky′ → not (has ⦃ d = Tri→discrete ⦄ ky′ (keys ((kx , vx) ∷ xs)))) (keys ys))
-                                                   (if q then ky ∷ filter (λ ky′ → not (has ⦃ d = Tri→discrete ⦄ ky′ (kx ∷ keys xs))) (keys ys)
-                                                         else filter (λ ky′ → not (has ⦃ d = Tri→discrete ⦄ ky′ (kx ∷ keys xs))) (keys ys)))
-                                       ((so≃is-true $ not-so (λ h → x≮y (ax ky (so→true! ⦃ Reflects-has ⦃ d = Tri→discrete ⦄ ⦄ h)))) ⁻¹)
-                                       perm-refl))
+  ... | lt x<y _ _ =
+    let ih = kvlist-union-perm-aux {f = f} xs ((ky , vy) ∷ ys)
+                             (rec (xs ++ (ky , vy) ∷ ys) <-ascend)
+                             (related→sorted rx) (∷ˢ ry)
+      in
+     pprep refl
+       (ptrans ih
+          (perm-cat-2l {zs = keys xs}
+             (peq (ap (λ q → if not (has ⦃ d = Tri→discrete ⦄ ky (keys xs)) then ky ∷ q else q)
+                      (filter-has-eq
+                         λ z hz → ap not (given-lt <-trans x<y (All→∀Has (related→all ry) z hz)
+                                            return (λ q → has ⦃ d = Tri→discrete ⦄ z (keys xs)
+                                                          ＝ ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ z (keys xs))
+                                            then refl))))))
+  ... | eq _ x=y _ =
+    let ih = kvlist-union-perm-aux {f = f} xs ys
+                             (rec (xs ++ ys) (<-suc-r (subst (length (xs ++ ys) <ⁿ_)
+                                                             (  ap suc (++-length xs ys)
+                                                              ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                                             <-ascend)))
+                             (related→sorted rx) (related→sorted ry)
+      in
+     pprep refl
+       (ptrans ih
+         (perm-cat-2l {zs = keys xs}
+            (peq (filter-has-eq
+                    λ z hz → ap not (given-lt subst (_< z) (x=y ⁻¹) (All→∀Has (related→all ry) z hz)
+                                       return (λ q → has ⦃ d = Tri→discrete ⦄ z (keys xs)
+                                                     ＝ ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ z (keys xs))
+                                       then refl)))))
+  ... | gt x≮y _ _ =
+    let ih = kvlist-union-perm-aux {f = f} ((kx , vx) ∷ xs) ys
+                            (rec (((kx , vx) ∷ xs) ++ ys)
+                                 (s<s (subst (length (xs ++ ys) <ⁿ_)
+                                             (  ap suc (++-length xs ys)
+                                              ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                             <-ascend)))
+                            (∷ˢ rx) (related→sorted ry)
+      in
+     ptrans (ptrans (pprep {x = ky} refl ih)
+                    (perm-cons-cat-commassoc {xs = kx ∷ keys xs}))
+            (perm-cat-2l {zs = kx ∷ keys xs}
+               (subst (λ q → Perm (ky ∷ filter (λ ky′ → not (has ⦃ d = Tri→discrete ⦄ ky′ (keys ((kx , vx) ∷ xs)))) (keys ys))
+                                  (if q then ky ∷ filter (λ ky′ → not (has ⦃ d = Tri→discrete ⦄ ky′ (kx ∷ keys xs))) (keys ys)
+                                        else filter (λ ky′ → not (has ⦃ d = Tri→discrete ⦄ ky′ (kx ∷ keys xs))) (keys ys)))
+                      ((so≃is-true $ not-so (λ ky∈?xs → let ky∈xs = so→true! ⦃ Reflects-has ⦃ d = Tri→discrete ⦄ ⦄ ky∈?xs in
+                                                         x≮y $ All→∀Has (related→all rx) ky ky∈xs)) ⁻¹)
+                      perm-refl))
 
   kvlist-union-perm : {f : V → V → V} {xs ys : List (K × V)}
                     → Is-kvlist xs → Is-kvlist ys
                     → Perm (keys (union-kv f xs ys))
                            (keys xs ++ filter (λ ky′ → not (has ⦃ d = Tri→discrete ⦄ ky′ (keys xs))) (keys ys))
-  kvlist-union-perm {f} {xs} {ys} ikx iky = kvlist-union-perm-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky                           
+  kvlist-union-perm {f} {xs} {ys} ikx iky =
+    kvlist-union-perm-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
 
   Is-kvlist-union-aux : {f : V → V → V} (xs ys : List (K × V))
                       → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
@@ -387,8 +396,81 @@ module KVList
   Is-kvlist-union : {f : V → V → V} {xs ys : List (K × V)}
                   → Is-kvlist xs → Is-kvlist ys
                   → Is-kvlist (union-kv f xs ys)
-  Is-kvlist-union {f} {xs} {ys} ikx iky = Is-kvlist-union-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
+  Is-kvlist-union {f} {xs} {ys} ikx iky =
+    Is-kvlist-union-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
 
   -- TODO kvlist-union-lookup
 
   -- inter
+
+  kvlist-inter-keys-aux : {f : V → V → V} (xs ys : List (K × V))
+                        → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
+                        → Is-kvlist xs → Is-kvlist ys
+                        → keys (inter-kv f xs ys) ＝ filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (keys ys)) (keys xs)
+  kvlist-inter-keys-aux      []               _                _         _       _      = refl
+  kvlist-inter-keys-aux     (_ ∷ xs)          []               _         _       _      = filter-false (keys xs) ⁻¹
+  kvlist-inter-keys-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) (acc rec) (∷ˢ rx) (∷ˢ ry) with d .is-trichotomous.trisect kx ky
+  ... | lt x<y _ y≮x =
+    let ih = kvlist-inter-keys-aux {f = f} xs ((ky , vy) ∷ ys)
+                             (rec (xs ++ (ky , vy) ∷ ys) <-ascend)
+                             (related→sorted rx) (∷ˢ ry)
+      in
+    given-gt x<y
+      return (λ q → keys (inter-kv f xs ((ky , vy) ∷ ys))
+                    ＝ (if ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ kx (keys ys)
+                           then kx ∷ filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)
+                           else filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)))
+      then
+        subst (λ q → keys (inter-kv f xs ((ky , vy) ∷ ys))
+                     ＝ (if q then kx ∷ filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)
+                              else filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)))
+              ((¬so≃is-false $ (λ kx∈?ys → let kx∈ys = so→true! ⦃ Reflects-has ⦃ d = Tri→discrete ⦄ ⦄ kx∈?ys in
+                                            y≮x (All→∀Has (related→all ry) kx kx∈ys))) ⁻¹)
+              ih
+  ... | eq _ x=y _ =
+    let ih = kvlist-inter-keys-aux {f = f} xs ys
+                             (rec (xs ++ ys) (<-suc-r (subst (length (xs ++ ys) <ⁿ_)
+                                                             (  ap suc (++-length xs ys)
+                                                              ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                                             <-ascend)))
+                             (related→sorted rx) (related→sorted ry)
+      in
+    given-eq x=y ⁻¹
+      return (λ q → kx ∷ keys (inter-kv f xs ys)
+                    ＝ (if ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ kx (keys ys)
+                           then kx ∷ filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)
+                           else filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)))
+      then
+        ap (kx ∷_) (ih ∙ filter-has-eq
+                           λ z hz → given-lt subst (_< z) x=y (All→∀Has (related→all rx) z hz)
+                                       return (λ q → has ⦃ d = Tri→discrete ⦄ z (keys ys)
+                                                     ＝ ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ z (keys ys))
+                                       then refl)
+  ... | gt x≮y x≠y y<x =
+    let ih = kvlist-inter-keys-aux {f = f} ((kx , vx) ∷ xs) ys
+                            (rec (((kx , vx) ∷ xs) ++ ys)
+                                 (s<s (subst (length (xs ++ ys) <ⁿ_)
+                                             (  ap suc (++-length xs ys)
+                                              ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                             <-ascend)))
+                            (∷ˢ rx) (related→sorted ry)
+      in
+    given-lt y<x
+      return (λ q → keys (inter-kv f ((kx , vx) ∷ xs) ys)
+                    ＝ (if ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ kx (keys ys)
+                           then kx ∷ filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)
+                           else filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (ky ∷ keys ys)) (keys xs)))
+      then (ih ∙ ap (λ q → if has ⦃ d = Tri→discrete ⦄ kx (keys ys) then kx ∷ q else q)
+                    (filter-has-eq {xs = keys xs}
+                      λ z hz → given-lt <-trans y<x (All→∀Has (related→all rx) z hz)
+                                 return (λ q → has ⦃ d = Tri→discrete ⦄ z (keys ys)
+                                               ＝ ⌊ ⌊ q ⌋≟ ⌋ or has ⦃ d = Tri→discrete ⦄ z (keys ys))
+                                 then refl))
+
+  kvlist-inter-keys : {f : V → V → V} {xs ys : List (K × V)}
+                    → Is-kvlist xs → Is-kvlist ys
+                    → keys (inter-kv f xs ys) ＝ filter (λ kx′ → has ⦃ d = Tri→discrete ⦄ kx′ (keys ys)) (keys xs)
+  kvlist-inter-keys {f} {xs} {ys} ikx iky =
+    kvlist-inter-keys-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
