@@ -31,7 +31,7 @@ module KVList
   ⦃ d : is-trichotomous K< ⦄
   where
 
-  open StrictPoset K< public renaming (Ob to K)
+  open StrictPoset K< renaming (Ob to K)
   open is-trichotomous d hiding (Ob ; _<_ ; <-asym ; <-trans ; <→≠)
 
   empty-kv : List (K × V)
