@@ -202,7 +202,7 @@ module KVList
       return (λ q → just v ＝ recᵐ (just v) (just ∘ flip f v) (recᵗ nothing (just v₀) (lookup-kv k′ xs) q))
       then refl
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | LT k<k₀ | GT _     = refl
-  kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | EQ k=k₀  with d .is-trichotomous.trisect k′ k
+  kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | EQ k=k₀  with trisect k′ k
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | EQ k=k₀ | LT k′<k  =
     given-lt subst (k′ <_) k=k₀ k′<k
       return (λ q → nothing ＝ recᵗ nothing (just v₀) (lookup-kv k′ xs) q)
@@ -215,7 +215,7 @@ module KVList
     given-gt subst (_< k′) k=k₀ k<k′
       return (λ q → lookup-kv k′ xs ＝ recᵗ nothing (just v₀) (lookup-kv k′ xs) q)
       then refl
-  kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | GT k₀<k with d .is-trichotomous.trisect k′ k₀
+  kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | GT k₀<k with trisect k′ k₀
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | GT k₀<k | LT k′<k₀ =
     given-lt <-trans k′<k₀ k₀<k
       return (λ q → nothing ＝ (if ⌊ ⌊ q ⌋≟ ⌋ then just v else nothing))
@@ -474,3 +474,43 @@ module KVList
                     → keys (inter-kv f xs ys) ＝ filter (λ kx′ → has kx′ (keys ys)) (keys xs)
   kvlist-inter-keys {f} {xs} {ys} ikx iky =
     kvlist-inter-keys-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
+
+  Is-kvlist-inter-aux : {f : V → V → V} (xs ys : List (K × V))
+                      → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
+                      → Is-kvlist xs → Is-kvlist ys
+                      → Is-kvlist (inter-kv f xs ys)
+  Is-kvlist-inter-aux {f} []               _                 _         _       _      = []ˢ
+  Is-kvlist-inter-aux {f} (_ ∷ _)          []                _         _       _      = []ˢ
+  Is-kvlist-inter-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) (acc rec) (∷ˢ rx) (∷ˢ ry) with trisect kx ky
+  ... | LT x<y =
+    Is-kvlist-inter-aux {f} xs ((ky , vy) ∷ ys)
+       (rec (xs ++ (ky , vy) ∷ ys) <-ascend)
+       (related→sorted rx) (∷ˢ ry)
+  ... | EQ x=y =
+    let ih = Is-kvlist-inter-aux {f} xs ys
+               (rec (xs ++ ys) (<-suc-r (subst (length (xs ++ ys) <ⁿ_)
+                                               (  ap suc (++-length xs ys)
+                                                ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                                ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹)
+                                               <-ascend)))
+               (related→sorted rx) (related→sorted ry)
+       in
+    ∷ˢ (sorted-at0→related ih
+           (all→atweak (subst (λ q → All (kx <_) q)
+                              (kvlist-inter-keys (related→sorted rx) (related→sorted ry) ⁻¹)
+                              (all→filter (related→all rx)))
+                       0))
+  ... | GT y<x =
+    Is-kvlist-inter-aux {f} ((kx , vx) ∷ xs) ys
+       (rec (((kx , vx) ∷ xs) ++ ys) (s<s (subst (length (xs ++ ys) <ⁿ_)
+                                                 (  ap suc (++-length xs ys)
+                                                  ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                                  ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹)
+                                                 <-ascend)))
+       (∷ˢ rx) (related→sorted ry)
+
+  Is-kvlist-inter : {f : V → V → V} {xs ys : List (K × V)}
+                  → Is-kvlist xs → Is-kvlist ys
+                  → Is-kvlist (inter-kv f xs ys)
+  Is-kvlist-inter {f} {xs} {ys} ikx iky =
+    Is-kvlist-inter-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
