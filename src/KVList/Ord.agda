@@ -58,6 +58,15 @@ module KVList.Ord
   KV≤-refl {xs = []}           = kvdone
   KV≤-refl {xs = (k , v) ∷ xs} = kvtake refl refl KV≤-refl
 
+  KV≤-trans : {xs ys zs : List (K × V)} → xs ≤kv ys → ys ≤kv zs → xs ≤kv zs
+  KV≤-trans                          {ys = .[]}               {zs = .[]}                xy                                 kvdone                                                                         = xy
+  KV≤-trans {xs = .((kx , vx) ∷ xs)} {ys = .((ky , vy) ∷ ys)} {zs = .((kz , vz) ∷ zs)} (kvtake {kx} {vx} {xs} exy lxy xy) (kvtake {kx = ky} {ky = kz} {vx = vy} {vy = vz} {xs = ys} {ys = zs} eyz lyz yz) =
+    kvtake (exy ∙ eyz) (lxy ∙ lyz) (KV≤-trans xy yz)
+  KV≤-trans                          {ys = .((ky , vy) ∷ ys)} {zs = .((kz , vz) ∷ zs)} (kvdrop xy)                        (kvtake {kx = ky} {ky = kz} {vx = vy} {vy = vz} {xs = ys} {ys = zs} ez lz yz)   =
+    kvdrop (KV≤-trans xy yz)
+  KV≤-trans                                                   {zs = .((kz , vz) ∷ zs)}  xy                                (kvdrop {ky = kz} {vy = vz} {ys = zs} yz)                                       =
+    kvdrop (KV≤-trans xy yz)
+
   -- remove
 
   remove-≤ : {k : K} {xs : List (K × V)} → remove-kv k xs ≤kv xs
@@ -109,3 +118,47 @@ module KVList.Ord
              → (∀ x y → (x ≤ f x y) × (y ≤ f x y))
              → (xs ≤kv union-kv f xs ys) × (ys ≤kv union-kv f xs ys)
   union-≤-lr {f} {xs} {ys} fle = union-≤-lr-aux {f = f} xs ys fle (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
+
+  -- inter
+
+  inter-≤-lr-aux : {f : V → V → V} (xs ys : List (K × V))
+                 → (∀ x y → (f x y ≤ x) × (f x y ≤ y))
+                 → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
+                 → (inter-kv f xs ys ≤kv xs) × (inter-kv f xs ys ≤kv ys)
+  inter-≤-lr-aux     []                ys              fle ac        = kvdone , KV≤-l
+  inter-≤-lr-aux     (_ ∷ _)           []              fle ac        = KV≤-l , kvdone
+  inter-≤-lr-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) fle (acc rec) with trisect kx ky
+  ... | LT x<y =
+    let (ihl , ihr) = inter-≤-lr-aux {f = f} xs ((ky , vy) ∷ ys)
+                                     fle
+                                     (rec (xs ++ (ky , vy) ∷ ys) <-ascend)
+      in
+    kvdrop ihl , ihr
+  ... | EQ x=y =
+    let (ihl , ihr) = inter-≤-lr-aux {f = f} xs ys
+                                     fle
+                                     (rec (xs ++ ys) (<-suc-r (subst (length (xs ++ ys) <ⁿ_)
+                                                             (  ap suc (++-length xs ys)
+                                                              ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                                             <-ascend)))
+        (fl , fr) = fle vx vy
+      in
+    kvtake refl fl ihl , kvtake x=y fr ihr
+  ... | GT y<x =
+    let (ihl , ihr) = inter-≤-lr-aux {f = f} ((kx , vx) ∷ xs) ys
+                                     fle
+                                     (rec (((kx , vx) ∷ xs) ++ ys)
+                                          (s<s (subst (length (xs ++ ys) <ⁿ_)
+                                                      (  ap suc (++-length xs ys)
+                                                       ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                                       ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                                      <-ascend)))
+      in
+    ihl , kvdrop ihr
+
+  inter-≤-lr : {f : V → V → V} {xs ys : List (K × V)}
+             → (∀ x y → (f x y ≤ x) × (f x y ≤ y))
+             → (inter-kv f xs ys ≤kv xs) × (inter-kv f xs ys ≤kv ys)
+  inter-≤-lr {f} {xs} {ys} fle = inter-≤-lr-aux {f = f} xs ys fle (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
+
