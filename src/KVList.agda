@@ -266,7 +266,20 @@ module KVList
                        → OPE (keys (remove-kv k xs)) (keys xs)
   kvlist-remove-subseq {xs} ikv = subst (λ q → OPE q (keys xs)) (kvlist-remove-keys ikv ⁻¹) filter-OPE
 
-  -- TODO Is-kvlist-remove
+  Is-kvlist-remove : {k : K} {xs : List (K × V)}
+                   → Is-kvlist xs
+                   → Is-kvlist (remove-kv k xs)
+  Is-kvlist-remove     {xs = []}              _     = []ˢ
+  Is-kvlist-remove {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) with trisect k k₀
+  ... | LT _    = ∷ˢ r
+  ... | EQ _    = related→sorted r
+  ... | GT k₀<k =
+    let ih = Is-kvlist-remove {k = k} (related→sorted r) in
+    ∷ˢ (sorted-at0→related ih
+          (all→atweak (subst (λ q → All (k₀ <_) q)
+                             (kvlist-remove-keys  (related→sorted r) ⁻¹)
+                             (all→filter (related→all r)))
+                      0))
 
   -- TODO kvlist-remove-lookup
 
@@ -514,3 +527,4 @@ module KVList
                   → Is-kvlist (inter-kv f xs ys)
   Is-kvlist-inter {f} {xs} {ys} ikx iky =
     Is-kvlist-inter-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
+
