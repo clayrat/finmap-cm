@@ -46,9 +46,42 @@ module KVList.Ord
     kvtake : ∀ {kx ky vx vy xs ys}
            → kx ＝ ky → vx ≤ vy → xs ≤kv ys
            → ((kx , vx) ∷ xs) ≤kv ((ky , vy) ∷ ys)
-    kvdrop : ∀ {ky vy xs ys}
+    kvdrop : ∀ {xs ky vy ys}
            → xs ≤kv ys
            → xs ≤kv ((ky , vy) ∷ ys)
+
+  KV≤-all : {xs ys : List (K × V)}
+          → Is-kvlist ys
+          → xs ≤kv ys
+          → All (λ where (kx , vx) →
+                           Σ[ vy ꞉ V ] (lookup-kv kx ys ＝ just vy) × (vx ≤ vy))
+                xs
+  KV≤-all {xs = .[]}            {ys = .[]}             _       kvdone                                         = []
+  KV≤-all {xs = (kx , vx) ∷ xs} {ys = (ky , vy) ∷ ys} (∷ˢ ry) (kvtake {kx} {ky} {vx} {vy} {xs} {ys} ex lx le) =
+    ( vy
+    , given-eq ex
+        return (λ q → recᵗ nothing (just vy) (lookup-kv kx ys) q ＝ just vy)
+        then refl
+    , lx)
+    ∷ all-map
+        (λ {x} → λ where
+             (vy′ , ey′ , le′) →
+                 vy′
+               , given-gt All→∀Has (related→all ry) (x .fst) (lookup-has ey′)
+                   return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
+                   then ey′
+               , le′)
+        (KV≤-all (related→sorted ry) le)
+  KV≤-all {xs = xs}             {ys = (ky , vy) ∷ ys} (∷ˢ ry) (kvdrop {xs} {ky} {vy} {ys} le)                 =
+    all-map
+      (λ {x} → λ where
+             (vy′ , ey′ , le′) →
+                  vy′
+                , given-gt All→∀Has (related→all ry) (x .fst) (lookup-has ey′)
+                   return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
+                   then ey′
+                , le′)
+      (KV≤-all (related→sorted ry) le)
 
   KV≤-l : {xs : List (K × V)} → [] ≤kv xs
   KV≤-l {xs = []}           = kvdone

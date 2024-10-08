@@ -103,6 +103,15 @@ module KVList
        return (λ q → recᵗ nothing (just v₀) (lookup-kv k xs) q ＝ nothing)
        then refl
 
+  lookup-has : ∀ {k v xs}
+             → lookup-kv k xs ＝ just v {- is-just ? -}
+             → Has k (keys xs)
+  lookup-has {k} {v} {xs = []}             eq = false! eq
+  lookup-has {k} {v} {xs = (k₀ , v₀) ∷ xs} eq with trisect k k₀
+  ... | LT _    = false! eq
+  ... | EQ k=k₀ = here (k=k₀ ⁻¹)
+  ... | GT _    = there (lookup-has eq)
+
   lookup-not-has : ∀ {k xs}
                  → ¬ Has k (keys xs) → lookup-kv k xs ＝ nothing {- is-nothing? -}
   lookup-not-has     {xs = []}             _  = refl
@@ -527,4 +536,3 @@ module KVList
                   → Is-kvlist (inter-kv f xs ys)
   Is-kvlist-inter {f} {xs} {ys} ikx iky =
     Is-kvlist-inter-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
-
