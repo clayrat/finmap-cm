@@ -318,11 +318,12 @@ module KVList
                                             then refl))))))
   ... | EQ x=y =
     let ih = kvlist-union-perm-aux {f = f} xs ys
-                             (rec (xs ++ ys) (<-suc-r (subst (length (xs ++ ys) <ⁿ_)
-                                                             (  ap suc (++-length xs ys)
-                                                              ∙ +-suc-r (length xs) (length ys) ⁻¹
-                                                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
-                                                             <-ascend)))
+                             (rec (xs ++ ys)
+                                  (<-suc-r (subst (length (xs ++ ys) <ⁿ_)
+                                                  (  ap suc (++-length xs ys)
+                                                   ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                                   ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                                  <-ascend)))
                              (related→sorted rx) (related→sorted ry)
       in
      pprep refl
@@ -335,12 +336,13 @@ module KVList
                                        then refl)))))
   ... | GT y<x =
     let ih = kvlist-union-perm-aux {f = f} ((kx , vx) ∷ xs) ys
-                            (rec (((kx , vx) ∷ xs) ++ ys)
-                                 (s<s (subst (length (xs ++ ys) <ⁿ_)
-                                             (  ap suc (++-length xs ys)
-                                              ∙ +-suc-r (length xs) (length ys) ⁻¹
-                                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
-                                             <-ascend)))
+                            (rec ((kx , vx) ∷ xs ++ ys)
+                                 (s<s $
+                                  subst (length (xs ++ ys) <ⁿ_)
+                                        (  ap suc (++-length xs ys)
+                                         ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                         ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                        <-ascend))
                             (∷ˢ rx) (related→sorted ry)
       in
      ptrans (ptrans (pprep {x = ky} refl ih)
@@ -357,8 +359,8 @@ module KVList
                     → Is-kvlist xs → Is-kvlist ys
                     → Perm (keys (union-kv f xs ys))
                            (keys xs ++ filter (λ ky′ → not (has ky′ (keys xs))) (keys ys))
-  kvlist-union-perm {f} {xs} {ys} ikx iky =
-    kvlist-union-perm-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
+  kvlist-union-perm {f} {xs} {ys} =
+    kvlist-union-perm-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
 
   Is-kvlist-union-aux : {f : V → V → V} (xs ys : List (K × V))
                       → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
@@ -417,8 +419,8 @@ module KVList
   Is-kvlist-union : {f : V → V → V} {xs ys : List (K × V)}
                   → Is-kvlist xs → Is-kvlist ys
                   → Is-kvlist (union-kv f xs ys)
-  Is-kvlist-union {f} {xs} {ys} ikx iky =
-    Is-kvlist-union-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
+  Is-kvlist-union {f} {xs} {ys} =
+    Is-kvlist-union-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
 
   -- TODO kvlist-union-lookup
 
@@ -494,8 +496,8 @@ module KVList
   kvlist-inter-keys : {f : V → V → V} {xs ys : List (K × V)}
                     → Is-kvlist xs → Is-kvlist ys
                     → keys (inter-kv f xs ys) ＝ filter (λ kx′ → has kx′ (keys ys)) (keys xs)
-  kvlist-inter-keys {f} {xs} {ys} ikx iky =
-    kvlist-inter-keys-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
+  kvlist-inter-keys {f} {xs} {ys} =
+    kvlist-inter-keys-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
 
   Is-kvlist-inter-aux : {f : V → V → V} (xs ys : List (K × V))
                       → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
@@ -534,5 +536,5 @@ module KVList
   Is-kvlist-inter : {f : V → V → V} {xs ys : List (K × V)}
                   → Is-kvlist xs → Is-kvlist ys
                   → Is-kvlist (inter-kv f xs ys)
-  Is-kvlist-inter {f} {xs} {ys} ikx iky =
-    Is-kvlist-inter-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys)))) ikx iky
+  Is-kvlist-inter {f} {xs} {ys} =
+    Is-kvlist-inter-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))

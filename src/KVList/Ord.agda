@@ -6,7 +6,8 @@ open import Order.Trichotomous
 
 open import Data.Empty
 open import Data.Nat.Properties
-open import Data.Nat.Order.Base renaming (_<_ to _<ⁿ_ ; _≤_ to _≤ⁿ_ ; <-trans to <ⁿ-trans ; <-asym to <ⁿ-asym ; <→≠ to <ⁿ→≠)
+open import Data.Nat.Order.Base renaming (_<_ to _<ⁿ_ ; <-trans to <ⁿ-trans ; <-asym to <ⁿ-asym ; <→≠ to <ⁿ→≠
+                                         ; _≤_ to _≤ⁿ_ ; ≤-trans to ≤ⁿ-trans ; ≤-antisym to ≤ⁿ-antisym ; ≤-ascend to ≤ⁿ-ascend)
 open import Data.Bool renaming (elim to elimᵇ ; rec to recᵇ)
 open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ)
 open import Data.Dec
@@ -50,14 +51,48 @@ module KVList.Ord
            → xs ≤kv ys
            → xs ≤kv ((ky , vy) ∷ ys)
 
-  KV≤-all : {xs ys : List (K × V)}
+  KV≤-length : {xs ys : List (K × V)} → xs ≤kv ys → length xs ≤ⁿ length ys
+  KV≤-length  kvdone        = z≤
+  KV≤-length (kvtake _ _ l) = s≤s (KV≤-length l)
+  KV≤-length (kvdrop l)     = ≤ⁿ-trans (KV≤-length l) ≤ⁿ-ascend
+
+  KV≤-l : {xs : List (K × V)} → [] ≤kv xs
+  KV≤-l {xs = []}           = kvdone
+  KV≤-l {xs = (k , v) ∷ xs} = kvdrop KV≤-l
+
+  KV≤-refl : {xs : List (K × V)} → xs ≤kv xs
+  KV≤-refl {xs = []}           = kvdone
+  KV≤-refl {xs = (k , v) ∷ xs} = kvtake refl refl KV≤-refl
+
+  KV≤-trans : {xs ys zs : List (K × V)} → xs ≤kv ys → ys ≤kv zs → xs ≤kv zs
+  KV≤-trans  xy                  kvdone             = xy
+  KV≤-trans (kvtake exy lxy xy) (kvtake eyz lyz yz) = kvtake (exy ∙ eyz) (lxy ∙ lyz) (KV≤-trans xy yz)
+  KV≤-trans (kvdrop xy)         (kvtake _ _ yz)     = kvdrop (KV≤-trans xy yz)
+  KV≤-trans  xy                 (kvdrop yz)         = kvdrop (KV≤-trans xy yz)
+
+  KV≤-antisym : {xs ys : List (K × V)} → xs ≤kv ys → ys ≤kv xs → xs ＝ ys
+  KV≤-antisym  kvdone          _               = refl
+  KV≤-antisym (kvtake e l xy) (kvtake _ l′ yx) =
+    ap² {C = λ _ _ → List (K × V)} _∷_ (×-path e (≤-antisym l l′)) (KV≤-antisym xy yx)
+  KV≤-antisym (kvtake _ _ xy) (kvdrop yx)      =
+    false! (≤ⁿ-trans (KV≤-length yx) (KV≤-length xy))
+  KV≤-antisym (kvdrop xy)     (kvtake _ _ yx)  =
+    false! (≤ⁿ-trans (KV≤-length xy) (KV≤-length yx))
+  KV≤-antisym (kvdrop xy)     (kvdrop yx)      =
+    false! $ ≤≃≤+r {n = 2} ⁻¹ $ ≤ⁿ-trans (s≤s $ KV≤-length xy) (KV≤-length yx)
+
+  -- alternative definition
+  Is-submap : List (K × V) → List (K × V) → 𝒰 (ℓᵏ ⊔ ℓᵛ ⊔ ℓ′)
+  Is-submap xs ys = All (λ where (kx , vx) →
+                                   Σ[ vy ꞉ V ] (lookup-kv kx ys ＝ just vy) × (vx ≤ vy))
+                        xs
+
+  KV≤→sub : {xs ys : List (K × V)}
           → Is-kvlist ys
           → xs ≤kv ys
-          → All (λ where (kx , vx) →
-                           Σ[ vy ꞉ V ] (lookup-kv kx ys ＝ just vy) × (vx ≤ vy))
-                xs
-  KV≤-all {xs = .[]}            {ys = .[]}             _       kvdone                                         = []
-  KV≤-all {xs = (kx , vx) ∷ xs} {ys = (ky , vy) ∷ ys} (∷ˢ ry) (kvtake {kx} {ky} {vx} {vy} {xs} {ys} ex lx le) =
+          → Is-submap xs ys
+  KV≤→sub {xs = .[]}            {ys = .[]}             _       kvdone                                         = []
+  KV≤→sub {xs = (kx , vx) ∷ xs} {ys = (ky , vy) ∷ ys} (∷ˢ ry) (kvtake {kx} {ky} {vx} {vy} {xs} {ys} ex lx le) =
     ( vy
     , given-eq ex
         return (λ q → recᵗ nothing (just vy) (lookup-kv kx ys) q ＝ just vy)
@@ -71,43 +106,56 @@ module KVList.Ord
                    return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
                    then ey′
                , le′)
-        (KV≤-all (related→sorted ry) le)
-  KV≤-all {xs = xs}             {ys = (ky , vy) ∷ ys} (∷ˢ ry) (kvdrop {xs} {ky} {vy} {ys} le)                 =
+        (KV≤→sub (related→sorted ry) le)
+  KV≤→sub {xs = xs}             {ys = (ky , vy) ∷ ys} (∷ˢ ry) (kvdrop {xs} {ky} {vy} {ys} le)                 =
     all-map
       (λ {x} → λ where
              (vy′ , ey′ , le′) →
                   vy′
-                , given-gt All→∀Has (related→all ry) (x .fst) (lookup-has ey′)
+                , (given-gt All→∀Has (related→all ry) (x .fst) (lookup-has ey′)
                    return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
-                   then ey′
+                   then ey′)
                 , le′)
-      (KV≤-all (related→sorted ry) le)
+      (KV≤→sub (related→sorted ry) le)
 
-  KV≤-l : {xs : List (K × V)} → [] ≤kv xs
-  KV≤-l {xs = []}           = kvdone
-  KV≤-l {xs = (k , v) ∷ xs} = kvdrop KV≤-l
-
-  KV≤-refl : {xs : List (K × V)} → xs ≤kv xs
-  KV≤-refl {xs = []}           = kvdone
-  KV≤-refl {xs = (k , v) ∷ xs} = kvtake refl refl KV≤-refl
-
-  KV≤-trans : {xs ys zs : List (K × V)} → xs ≤kv ys → ys ≤kv zs → xs ≤kv zs
-  KV≤-trans                          {ys = .[]}               {zs = .[]}                xy                                 kvdone                                                                         = xy
-  KV≤-trans {xs = .((kx , vx) ∷ xs)} {ys = .((ky , vy) ∷ ys)} {zs = .((kz , vz) ∷ zs)} (kvtake {kx} {vx} {xs} exy lxy xy) (kvtake {kx = ky} {ky = kz} {vx = vy} {vy = vz} {xs = ys} {ys = zs} eyz lyz yz) =
-    kvtake (exy ∙ eyz) (lxy ∙ lyz) (KV≤-trans xy yz)
-  KV≤-trans                          {ys = .((ky , vy) ∷ ys)} {zs = .((kz , vz) ∷ zs)} (kvdrop xy)                        (kvtake {kx = ky} {ky = kz} {vx = vy} {vy = vz} {xs = ys} {ys = zs} ez lz yz)   =
-    kvdrop (KV≤-trans xy yz)
-  KV≤-trans                                                   {zs = .((kz , vz) ∷ zs)}  xy                                (kvdrop {ky = kz} {vy = vz} {ys = zs} yz)                                       =
-    kvdrop (KV≤-trans xy yz)
+  sub→KV≤ : {xs ys : List (K × V)}
+          → Is-kvlist xs
+          → Is-submap xs ys
+          → xs ≤kv ys
+  sub→KV≤ {xs = []}                                    _       []                   = KV≤-l
+  sub→KV≤ {xs = (kx , vx) ∷ xs} {ys = []}              _      ((vy  , ey , ly) ∷ a) = false! ey
+  sub→KV≤ {xs = (kx , vx) ∷ xs} {ys = (ky , vy) ∷ ys} (∷ˢ rx) ((vy′ , ey , ly) ∷ a) with trisect kx ky
+  ... | LT x<y = false! ey
+  ... | EQ x=y = kvtake x=y
+                        (subst (vx ≤_) (just-inj ey ⁻¹) ly)
+                        (sub→KV≤ (related→sorted rx)
+                                 (all-has-map (λ {x} hx → λ where
+                                                             (vy″ , ey″ , ly″) →
+                                                                  vy″
+                                                                , (given-gt subst (_< x .fst) x=y $ All→∀Has (related→all rx) (x .fst) (has-on-map fst hx)
+                                                                     return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy″ → lookup-kv (x .fst) ys ＝ just vy″)
+                                                                     then id) ey″
+                                                                , ly″)
+                                     a))
+  ... | GT y<x = kvdrop (sub→KV≤ (∷ˢ rx)
+                                 ((vy′ , (ey , ly))
+                                  ∷ all-has-map (λ {x} hx → λ where
+                                                               (vy″ , ey″ , ly″) →
+                                                                    vy″
+                                                                  , (given-gt y<x ∙ All→∀Has (related→all rx) (x .fst) (has-on-map fst hx)
+                                                                       return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy″ → lookup-kv (x .fst) ys ＝ just vy″)
+                                                                       then id) ey″
+                                                                  , ly″)
+                                      a))
 
   -- remove
 
   remove-≤ : {k : K} {xs : List (K × V)} → remove-kv k xs ≤kv xs
   remove-≤     {xs = []}             = kvdone
   remove-≤ {k} {xs = (kx , vx) ∷ xs} with trisect k kx
-  ... | LT k<kx = KV≤-refl
-  ... | EQ k=kx = kvdrop KV≤-refl
-  ... | GT kx<k = kvtake refl refl remove-≤
+  ... | LT _ = KV≤-refl
+  ... | EQ _ = kvdrop KV≤-refl
+  ... | GT _ = kvtake refl refl remove-≤
 
   -- union
 
@@ -152,6 +200,66 @@ module KVList.Ord
              → (xs ≤kv union-kv f xs ys) × (ys ≤kv union-kv f xs ys)
   union-≤-lr {f} {xs} {ys} fle = union-≤-lr-aux {f = f} xs ys fle (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
 
+  union-≤-least : {f : V → V → V} (xs ys ub : List (K × V))
+                → Is-kvlist ub
+                → (∀ x y z → x ≤ z → y ≤ z → f x y ≤ z)
+                → xs ≤kv ub → ys ≤kv ub → union-kv f xs ys ≤kv ub
+  union-≤-least     []                ys               ub               _      _    xle                yle               = yle
+  union-≤-least     (_ ∷ _)           []               ub               _      _    xle                yle               = xle
+  union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvtake ex lx xle) (kvtake ey ly yle) =
+    given-eq (ex ∙ ey ⁻¹)
+      return (λ q → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
+                         ((kx , f vx vy) ∷ union-kv f xs ys)
+                         ((ky , vy) ∷ union-kv f ((kx , vx) ∷ xs) ys)
+                         q ≤kv ((ku , vu) ∷ ub))
+      then kvtake ex (fle vx vy vu lx ly)
+              (union-≤-least xs ys ub
+                  (related→sorted ru)
+                  fle xle yle)
+  union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvtake ex lx xle) (kvdrop yle)       =
+    let vel = all-head $ KV≤→sub (related→sorted ru) yle
+        lu = All→∀Has (related→all ru) ky (lookup-has (vel .snd .fst))
+      in
+    given-lt subst (_< ky) (ex ⁻¹) lu
+       return (λ q → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
+                          ((kx , f vx vy) ∷ union-kv f xs ys)
+                          ((ky , vy) ∷ union-kv f ((kx , vx) ∷ xs) ys)
+                          q ≤kv ((ku , vu) ∷ ub))
+       then kvtake ex lx
+               (union-≤-least xs ((ky , vy) ∷ ys) ub
+                 (related→sorted ru)
+                 fle xle yle)
+  union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvdrop xle)       (kvtake ey ly yle) =
+    let vel = all-head $ KV≤→sub (related→sorted ru) xle
+        lu = All→∀Has (related→all ru) kx (lookup-has (vel .snd .fst))
+      in
+    given-gt subst (_< kx) (ey ⁻¹) lu
+       return (λ q → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
+                          ((kx , f vx vy) ∷ union-kv f xs ys)
+                          ((ky , vy) ∷ union-kv f ((kx , vx) ∷ xs) ys)
+                          q ≤kv ((ku , vu) ∷ ub))
+       then kvtake ey ly
+              (union-≤-least ((kx , vx) ∷ xs) ys ub
+                 (related→sorted ru)
+                 fle xle yle)
+  union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvdrop xle)       (kvdrop yle)       =
+    (caseᵗ kx >=< ky
+      return (λ q → recᵗ ((kx , vx) ∷ union-kv (λ z z₁ → f z z₁) xs ((ky , vy) ∷ ys))
+                         ((kx , f vx vy) ∷ union-kv (λ z z₁ → f z z₁) xs ys)
+                         ((ky , vy) ∷ union-kv (λ z z₁ → f z z₁) ((kx , vx) ∷ xs) ys)
+                         q ≤kv ub
+                  → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
+                         ((kx , f vx vy) ∷ union-kv f xs ys)
+                         ((ky , vy) ∷ union-kv f ((kx , vx) ∷ xs) ys)
+                         q ≤kv ((ku , vu) ∷ ub))
+      of λ where
+             (LT x<y) → kvdrop
+             (EQ x=y) → kvdrop
+             (GT y<x) → kvdrop)
+      (union-≤-least ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ub
+                 (related→sorted ru)
+                 fle xle yle)
+
   -- inter
 
   inter-≤-lr-aux : {f : V → V → V} (xs ys : List (K × V))
@@ -195,3 +303,91 @@ module KVList.Ord
              → (inter-kv f xs ys ≤kv xs) × (inter-kv f xs ys ≤kv ys)
   inter-≤-lr {f} {xs} {ys} fle = inter-≤-lr-aux {f = f} xs ys fle (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
 
+  inter-≤-greatest-aux : {f : V → V → V} (xs ys lb : List (K × V))
+                       → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
+                       → Is-kvlist xs → Is-kvlist ys
+                       → (∀ x y z → z ≤ x → z ≤ y → z ≤ f x y)
+                       → lb ≤kv xs → lb ≤kv ys → lb ≤kv inter-kv f xs ys
+  inter-≤-greatest-aux      []               ys                lb              _          _      _       _    xle                                              _                                               = xle
+  inter-≤-greatest-aux      (_ ∷ _)          []                lb              _          _       _      _    _                                                yle                                             = yle
+  inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) .((kl , vl) ∷ lb) (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvtake {kx = kl} {vx = vl} {xs = lb} ex lx xle) (kvtake ey ly yle)                               =
+    given-eq (ex ⁻¹ ∙ ey)
+      return (λ q → ((kl , vl) ∷ lb) ≤kv recᵗ (inter-kv f xs ((ky , vy) ∷ ys))
+                                              ((kx , f vx vy) ∷ inter-kv f xs ys)
+                                              (inter-kv f ((kx , vx) ∷ xs) ys)
+                                              q)
+      then kvtake ex (fle vx vy vl lx ly)
+             (inter-≤-greatest-aux xs ys lb
+                 (rec (xs ++ ys)
+                      (<-suc-r $
+                       subst (length (xs ++ ys) <ⁿ_)
+                             (  ap suc (++-length xs ys)
+                              ∙ +-suc-r (length xs) (length ys) ⁻¹
+                              ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                             <-ascend))
+                 (related→sorted rx) (related→sorted ry)
+                 fle xle yle)
+  inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) .((kl , vl) ∷ lb) (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvtake {kx = kl} {vx = vl} {xs = lb} ex lx xle) (kvdrop yle)                                     =
+    let vel = all-head $ KV≤→sub (related→sorted ry) yle
+        ll = All→∀Has (related→all ry) kl (lookup-has (vel .snd .fst))
+      in
+    given-gt subst (ky <_) ex ll
+       return (λ q → ((kl , vl) ∷ lb) ≤kv recᵗ (inter-kv f xs ((ky , vy) ∷ ys))
+                                               ((kx , f vx vy) ∷ inter-kv f xs ys)
+                                               (inter-kv f ((kx , vx) ∷ xs) ys)
+                                               q)
+       then inter-≤-greatest-aux ((kx , vx) ∷ xs) ys ((kl , vl) ∷ lb)
+               (rec ((kx , vx) ∷ xs ++ ys)
+                    (s<s $
+                     subst (length (xs ++ ys) <ⁿ_)
+                           (  ap suc (++-length xs ys)
+                            ∙ +-suc-r (length xs) (length ys) ⁻¹
+                            ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                           <-ascend))
+               (∷ˢ rx) (related→sorted ry)
+               fle (kvtake ex lx xle) yle
+  inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) .((kl , vl) ∷ lb) (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvdrop xle)                                     (kvtake {kx = kl} {vx = vl} {xs = lb} ey ly yle) =
+    let vel = all-head $ KV≤→sub (related→sorted rx) xle
+        ll = All→∀Has (related→all rx) kl (lookup-has (vel .snd .fst))
+      in
+    given-lt subst (kx <_) ey ll
+       return (λ q → ((kl , vl) ∷ lb) ≤kv recᵗ (inter-kv f xs ((ky , vy) ∷ ys))
+                                               ((kx , f vx vy) ∷ inter-kv f xs ys)
+                                               (inter-kv f ((kx , vx) ∷ xs) ys)
+                                               q)
+       then inter-≤-greatest-aux xs ((ky , vy) ∷ ys) ((kl , vl) ∷ lb)
+              (rec (xs ++ (ky , vy) ∷ ys) <-ascend)
+              (related→sorted rx) (∷ˢ ry)
+              fle xle (kvtake ey ly yle)
+  inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys)   lb              (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvdrop xle)                                     (kvdrop yle)                                     with trisect kx ky
+  ... | LT x<y = inter-≤-greatest-aux xs ((ky , vy) ∷ ys) lb
+                   (rec (xs ++ (ky , vy) ∷ ys) <-ascend)
+                   (related→sorted rx) (∷ˢ ry)
+                   fle xle (kvdrop yle)
+  ... | EQ x=y = kvdrop $ inter-≤-greatest-aux xs ys lb
+                             (rec (xs ++ ys)
+                                  (<-suc-r $
+                                   subst (length (xs ++ ys) <ⁿ_)
+                                         (  ap suc (++-length xs ys)
+                                          ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                          ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                                         <-ascend))
+                             (related→sorted rx) (related→sorted ry)
+                             fle xle yle
+  ... | GT y<x = inter-≤-greatest-aux ((kx , vx) ∷ xs) ys lb
+                   (rec ((kx , vx) ∷ xs ++ ys)
+                        (s<s $
+                         subst (length (xs ++ ys) <ⁿ_)
+                               (  ap suc (++-length xs ys)
+                                ∙ +-suc-r (length xs) (length ys) ⁻¹
+                                ∙ ++-length xs ((ky , vy) ∷ ys) ⁻¹ )
+                               <-ascend))
+                   (∷ˢ rx) (related→sorted ry)
+                   fle (kvdrop xle) yle
+
+  inter-≤-greatest : {f : V → V → V} {xs ys lb : List (K × V)}
+                   → Is-kvlist xs → Is-kvlist ys
+                   → (∀ x y z → z ≤ x → z ≤ y → z ≤ f x y)
+                   → lb ≤kv xs → lb ≤kv ys → lb ≤kv inter-kv f xs ys
+  inter-≤-greatest {f} {xs} {ys} {lb} =
+    inter-≤-greatest-aux {f} xs ys lb (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
