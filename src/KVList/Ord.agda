@@ -6,8 +6,8 @@ open import Order.Trichotomous
 
 open import Data.Empty
 open import Data.Nat.Properties
-open import Data.Nat.Order.Base renaming (_<_ to _<ⁿ_ ; <-trans to <ⁿ-trans ; <-asym to <ⁿ-asym ; <→≠ to <ⁿ→≠
-                                         ; _≤_ to _≤ⁿ_ ; ≤-trans to ≤ⁿ-trans ; ≤-antisym to ≤ⁿ-antisym)
+open import Data.Nat.Order.Base renaming ( _<_ to _<ⁿ_ ; <-trans to <ⁿ-trans ; <-asym to <ⁿ-asym       ; <→≠ to <ⁿ→≠
+                                         ; _≤_ to _≤ⁿ_ ; ≤-trans to ≤ⁿ-trans ; ≤-antisym to ≤ⁿ-antisym ; ≤-refl to ≤ⁿ-refl)
 open import Data.Bool renaming (elim to elimᵇ ; rec to recᵇ)
 open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ)
 open import Data.Dec
@@ -167,6 +167,17 @@ module KVList.Ord
     absurd (<→≠ lt (e₂ ⁻¹))
   KV≤-prop (∷ˢ ry) (kvdrop xy₁)       (kvdrop xy₂)       =
     ap kvdrop (KV≤-prop (related→sorted ry) xy₁ xy₂)
+
+  -- upsert
+
+  upsert-≤ : {f : V → V → V} {k : K} {v : V} {xs : List (K × V)}
+           → (∀ x → x ≤ f x v)
+           → xs ≤kv upsert-kv f k v xs
+  upsert-≤         {xs = []}             fle = KV≤-l
+  upsert-≤ {k} {v} {xs = (kx , vx) ∷ xs} fle with trisect k kx
+  ... | LT _ = kvdrop KV≤-refl
+  ... | EQ e = kvtake (e ⁻¹) (fle vx) KV≤-refl
+  ... | GT _ = kvtake refl ≤-refl (upsert-≤ fle)
 
   -- remove
 

@@ -46,20 +46,20 @@ module KVList
       gt⇒ lookup-kv k xs
 
   upsert-kv : (V → V → V) → K → V → List (K × V) → List (K × V)
-  upsert-kv f k v      []            = (k , v) ∷ []
-  upsert-kv f k v xs₀@((x , w) ∷ xs) =
-    caseᵗ k >=< x
+  upsert-kv f k v      []              = (k , v) ∷ []
+  upsert-kv f k v xs₀@((k₀ , v₀) ∷ xs) =
+    caseᵗ k >=< k₀
       lt⇒ (k , v) ∷ xs₀
-      eq⇒ (k , f w v) ∷ xs
-      gt⇒ ((x , w) ∷ upsert-kv f k v xs)
+      eq⇒ (k , f v₀ v) ∷ xs
+      gt⇒ ((k₀ , v₀) ∷ upsert-kv f k v xs)
 
   remove-kv : K → List (K × V) → List (K × V)
-  remove-kv k      []            = []
-  remove-kv k xs₀@((x , v) ∷ xs) =
-    caseᵗ k >=< x
+  remove-kv k      []              = []
+  remove-kv k xs₀@((k₀ , v₀) ∷ xs) =
+    caseᵗ k >=< k₀
       lt⇒ xs₀
       eq⇒ xs
-      gt⇒ ((x , v) ∷ remove-kv k xs)
+      gt⇒ ((k₀ , v₀) ∷ remove-kv k xs)
 
   union-kv : (V → V → V) → List (K × V) → List (K × V) → List (K × V)
   union-kv f      []                   ys              = ys
@@ -90,8 +90,8 @@ module KVList
   Is-kvlist : List (K × V) → 𝒰 (ℓ ⊔ ℓᵏ)
   Is-kvlist xs = Sorted _<_ (keys xs)
 
-  keys-++ : ∀ {xs ys} → keys (xs ++ ys) ＝ keys xs ++ keys ys
-  keys-++ {xs} {ys} = map-++ fst xs ys
+--  keys-++ : ∀ {xs ys} → keys (xs ++ ys) ＝ keys xs ++ keys ys
+--  keys-++ {xs} {ys} = map-++ fst xs ys
 
   -- lookup
 
@@ -194,8 +194,8 @@ module KVList
 
   kvlist-upsert-lookup : {f : V → V → V} {k : K} {v : V} {xs : List (K × V)}
                        → ∀ k′ → lookup-kv k′ (upsert-kv f k v xs) ＝ (if ⌊ k′ ≟ k ⌋
-                                                                              then recᵐ (just v) (just ∘ flip f v) (lookup-kv k′ xs)
-                                                                              else lookup-kv k′ xs)
+                                                                        then recᵐ (just v) (just ∘ flip f v) (lookup-kv k′ xs)
+                                                                        else lookup-kv k′ xs)
   kvlist-upsert-lookup     {k}     {xs = []}             k′ with trisect k′ k
   ... | LT _ = refl
   ... | EQ _ = refl
@@ -203,7 +203,7 @@ module KVList
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ with trisect k k₀
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | LT k<k₀  with trisect k′ k
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | LT k<k₀ | LT k′<k  =
-    given-lt (<-trans k′<k k<k₀)
+    given-lt (k′<k ∙ k<k₀)
       return (λ q → nothing ＝ recᵗ nothing (just v₀) (lookup-kv k′ xs) q)
       then refl
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | LT k<k₀ | EQ k′=k  =
@@ -226,7 +226,7 @@ module KVList
       then refl
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | GT k₀<k with trisect k′ k₀
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | GT k₀<k | LT k′<k₀ =
-    given-lt <-trans k′<k₀ k₀<k
+    given-lt (k′<k₀ ∙ k₀<k)
       return (λ q → nothing ＝ (if ⌊ ⌊ q ⌋≟ ⌋ then just v else nothing))
       then refl
   kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | GT k₀<k | EQ k′=k₀ =
@@ -256,8 +256,8 @@ module KVList
     filter-all
       (true→so! ⦃ Reflects-all-bool {p = λ x → not ⌊ k ≟ x ⌋} {xs = keys xs} ⦄
         (all-map
-           (λ {x = y} k₀<y → not-so λ eq → <→≠ (<-trans k<k₀ k₀<y)
-                                               (so→true! eq))
+           (λ k₀<y → not-so λ eq → <→≠ (<-trans k<k₀ k₀<y)
+                                       (so→true! eq))
            (related→all r))) ⁻¹
   ... | EQ k=k₀ =
     filter-all
@@ -290,7 +290,43 @@ module KVList
                              (all→filter (related→all r)))
                       0))
 
-  -- TODO kvlist-remove-lookup
+  kvlist-remove-lookup : {k : K} {xs : List (K × V)}
+                       → Is-kvlist xs
+                       → ∀ k′ → lookup-kv k′ (remove-kv k xs) ＝ (if ⌊ k′ ≟ k ⌋
+                                                                    then nothing
+                                                                    else lookup-kv k′ xs)
+  kvlist-remove-lookup {k} {xs = []}             _ k′ = if-same ⁻¹
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ with trisect k k₀
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | LT k<k₀ with trisect k′ k₀
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | LT k<k₀ | LT k′<k₀ = if-same ⁻¹
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | LT k<k₀ | EQ k′=k₀ =
+    given-gt subst (k <_) (k′=k₀ ⁻¹) k<k₀
+       return (λ q → just v₀ ＝ (if ⌊ ⌊ q ⌋≟ ⌋ then nothing else just v₀))
+       then refl
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | LT k<k₀ | GT k₀<k′ =
+    given-gt k<k₀ ∙ k₀<k′
+       return (λ q → lookup-kv k′ xs ＝ (if ⌊ ⌊ q ⌋≟ ⌋ then nothing else lookup-kv k′ xs))
+       then refl
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | EQ k=k₀ with trisect k′ k₀
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | EQ k=k₀ | LT k′<k₀ =
+      lookup-not-has (λ h′ → <-asym k′<k₀ (All→∀Has (related→all r) k′ h′))
+    ∙ if-same ⁻¹
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | EQ k=k₀ | EQ k′=k₀ =
+    given-eq k′=k₀ ∙ k=k₀ ⁻¹
+       return (λ q → lookup-kv k′ xs ＝ (if ⌊ ⌊ q ⌋≟ ⌋ then nothing else just v₀))
+       then lookup-not-has (λ h′ → <→≠ (All→∀Has (related→all r) k′ h′) (k′=k₀ ⁻¹))
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | EQ k=k₀ | GT k₀<k′ =
+    given-gt subst (_< k′) (k=k₀ ⁻¹) k₀<k′
+       return (λ q → lookup-kv k′ xs ＝ (if ⌊ ⌊ q ⌋≟ ⌋ then nothing else lookup-kv k′ xs))
+       then refl
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | GT k₀<k with trisect k′ k₀
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | GT k₀<k | LT k′<k₀ = if-same ⁻¹
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | GT k₀<k | EQ k′=k₀ =
+    given-lt subst (_< k) (k′=k₀ ⁻¹) k₀<k
+       return (λ q → just v₀ ＝ (if ⌊ ⌊ q ⌋≟ ⌋ then nothing else just v₀))
+       then refl
+  kvlist-remove-lookup {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) k′ | GT k₀<k | GT k₀<k′ =
+    kvlist-remove-lookup (related→sorted r) k′
 
   -- union
 
@@ -538,3 +574,5 @@ module KVList
                   → Is-kvlist (inter-kv f xs ys)
   Is-kvlist-inter {f} {xs} {ys} =
     Is-kvlist-inter-aux {f = f} xs ys (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
+
+  -- TODO kvlist-inter-lookup
