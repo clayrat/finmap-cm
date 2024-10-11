@@ -7,7 +7,7 @@ open import Order.Trichotomous
 open import Data.Empty
 open import Data.Nat.Properties
 open import Data.Nat.Order.Base renaming (_<_ to _<ⁿ_ ; <-trans to <ⁿ-trans ; <-asym to <ⁿ-asym ; <→≠ to <ⁿ→≠
-                                         ; _≤_ to _≤ⁿ_ ; ≤-trans to ≤ⁿ-trans ; ≤-antisym to ≤ⁿ-antisym ; ≤-ascend to ≤ⁿ-ascend)
+                                         ; _≤_ to _≤ⁿ_ ; ≤-trans to ≤ⁿ-trans ; ≤-antisym to ≤ⁿ-antisym)
 open import Data.Bool renaming (elim to elimᵇ ; rec to recᵇ)
 open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ)
 open import Data.Dec
@@ -54,7 +54,7 @@ module KVList.Ord
   KV≤-length : {xs ys : List (K × V)} → xs ≤kv ys → length xs ≤ⁿ length ys
   KV≤-length  kvdone        = z≤
   KV≤-length (kvtake _ _ l) = s≤s (KV≤-length l)
-  KV≤-length (kvdrop l)     = ≤ⁿ-trans (KV≤-length l) ≤ⁿ-ascend
+  KV≤-length (kvdrop l)     = ≤ⁿ-trans (KV≤-length l) ≤-ascend
 
   KV≤-l : {xs : List (K × V)} → [] ≤kv xs
   KV≤-l {xs = []}           = kvdone
@@ -147,6 +147,26 @@ module KVList.Ord
                                                                        then id) ey″
                                                                   , ly″)
                                       a))
+
+  KV≤-prop : {xs ys : List (K × V)}
+           → Is-kvlist ys
+           → is-prop (xs ≤kv ys)
+  KV≤-prop  _       kvdone             kvdone            = refl
+  KV≤-prop (∷ˢ ry) (kvtake e₁ l₁ xy₁) (kvtake e₂ l₂ xy₂) =
+      ap² (λ x y → kvtake x y xy₁) (is-discrete→is-set (tri-order→discrete d) _ _ e₁ e₂) (≤-thin l₁ l₂)
+    ∙ ap (kvtake e₂ l₂) (KV≤-prop (related→sorted ry) xy₁ xy₂)
+  KV≤-prop (∷ˢ ry) (kvtake e₁ l₁ xy₁) (kvdrop xy₂)       =
+    let vel = all-head $ KV≤→sub (related→sorted ry) xy₂
+        lt = All→∀Has (related→all ry) _ (lookup-has (vel .snd .fst))
+      in
+    absurd (<→≠ lt (e₁ ⁻¹))
+  KV≤-prop (∷ˢ ry) (kvdrop xy₁)       (kvtake e₂ l₂ xy₂) =
+    let vel = all-head $ KV≤→sub (related→sorted ry) xy₁
+        lt = All→∀Has (related→all ry) _ (lookup-has (vel .snd .fst))
+      in
+    absurd (<→≠ lt (e₂ ⁻¹))
+  KV≤-prop (∷ˢ ry) (kvdrop xy₁)       (kvdrop xy₂)       =
+    ap kvdrop (KV≤-prop (related→sorted ry) xy₁ xy₂)
 
   -- remove
 
