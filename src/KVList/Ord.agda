@@ -26,21 +26,21 @@ open import Data.List.Correspondences.Unary.Related
 open import Data.List.Correspondences.Binary.Perm
 open import Data.List.Correspondences.Binary.OPE
 
-open import KVList
+import KVList
 
 module KVList.Ord
   {ℓᵏ ℓᵛ ℓ ℓ′ : Level}
   {K< : StrictPoset ℓᵏ ℓ}
   {V≤ : Poset ℓᵛ ℓ′}
-  ⦃ d : is-trichotomous K< ⦄
+  ⦃ d : is-trichotomous K< ⦄  -- TODO move this down
 
   where
 
   open StrictPoset K< renaming (Ob to K)
   open Poset V≤ renaming (Ob to V)
   open is-trichotomous d hiding (Ob ; _<_ ; <-asym ; <-trans ; <→≠)
-
---  open KVList {K< = K<} {V}
+  open KVList {K< = K<} {V}
+  open KVList.Ops {K< = K<} {V = V}
 
   data _≤kv_ : List (K × V) → List (K × V) → 𝒰 (ℓᵏ ⊔ ℓᵛ ⊔ ℓ′) where
     kvdone : [] ≤kv []
