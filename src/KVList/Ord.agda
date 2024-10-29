@@ -13,14 +13,14 @@ open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ)
 open import Data.Dec
 open import Data.Reflects
 open import Data.Dec.Tri renaming (elim to elimᵗ ; rec to recᵗ)
-open import Data.Wellfounded
+open import Data.Acc
 
 open import Data.List
 open import Data.List.Operations.Properties
 open import Data.List.Operations.Discrete
 open import Data.List.Correspondences.Unary.All
 open import Data.List.Correspondences.Unary.Any
-open import Data.List.Correspondences.Unary.Has
+open import Data.List.Membership
 open import Data.List.Correspondences.Unary.At
 open import Data.List.Correspondences.Unary.Related
 open import Data.List.Correspondences.Binary.Perm
@@ -56,9 +56,9 @@ module KVList.Ord
   KV≤-length (kvtake _ _ l) = s≤s (KV≤-length l)
   KV≤-length (kvdrop l)     = ≤ⁿ-trans (KV≤-length l) ≤-ascend
 
-  KV≤-l : {xs : List (K × V)} → [] ≤kv xs
-  KV≤-l {xs = []}           = kvdone
-  KV≤-l {xs = (k , v) ∷ xs} = kvdrop KV≤-l
+  KV≤-init : {xs : List (K × V)} → [] ≤kv xs
+  KV≤-init {xs = []}           = kvdone
+  KV≤-init {xs = (k , v) ∷ xs} = kvdrop KV≤-init
 
   KV≤-refl : {xs : List (K × V)} → xs ≤kv xs
   KV≤-refl {xs = []}           = kvdone
@@ -81,10 +81,10 @@ module KVList.Ord
   KV≤-antisym (kvdrop xy)     (kvdrop yx)      =
     false! $ ≤≃≤+r {n = 2} ⁻¹ $ ≤ⁿ-trans (s≤s $ KV≤-length xy) (KV≤-length yx)
 
-  -- alternative definition
+  -- alternative definition via lookup
   Is-submap : List (K × V) → List (K × V) → 𝒰 (ℓᵏ ⊔ ℓᵛ ⊔ ℓ′)
   Is-submap xs ys = All (λ where (kx , vx) →
-                                   Σ[ vy ꞉ V ] (lookup-kv kx ys ＝ just vy) × (vx ≤ vy))
+                                   Σ[ vy ꞉ V ] (lookup-kv kx ys ＝ just vy) × (vx ≤ vy)) -- TODO ∃ ?
                         xs
 
   KV≤→sub : {xs ys : List (K × V)}
@@ -102,7 +102,7 @@ module KVList.Ord
         (λ {x} → λ where
              (vy′ , ey′ , le′) →
                  vy′
-               , given-gt All→∀Has (related→all ry) (x .fst) (lookup-has ey′)
+               , given-gt All→∀∈ (related→all ry) (x .fst) (lookup-has ey′)
                    return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
                    then ey′
                , le′)
@@ -112,7 +112,7 @@ module KVList.Ord
       (λ {x} → λ where
              (vy′ , ey′ , le′) →
                   vy′
-                , (given-gt All→∀Has (related→all ry) (x .fst) (lookup-has ey′)
+                , (given-gt All→∀∈ (related→all ry) (x .fst) (lookup-has ey′)
                    return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
                    then ey′)
                 , le′)
@@ -122,27 +122,27 @@ module KVList.Ord
           → Is-kvlist xs
           → Is-submap xs ys
           → xs ≤kv ys
-  sub→KV≤ {xs = []}                                    _       []                   = KV≤-l
+  sub→KV≤ {xs = []}                                    _       []                   = KV≤-init
   sub→KV≤ {xs = (kx , vx) ∷ xs} {ys = []}              _      ((vy  , ey , ly) ∷ a) = false! ey
   sub→KV≤ {xs = (kx , vx) ∷ xs} {ys = (ky , vy) ∷ ys} (∷ˢ rx) ((vy′ , ey , ly) ∷ a) with trisect kx ky
   ... | LT x<y = false! ey
   ... | EQ x=y = kvtake x=y
                         (subst (vx ≤_) (just-inj ey ⁻¹) ly)
                         (sub→KV≤ (related→sorted rx)
-                                 (all-has-map (λ {x} hx → λ where
+                                 (all-∈-map (λ {x} hx → λ where
                                                              (vy″ , ey″ , ly″) →
                                                                   vy″
-                                                                , (given-gt subst (_< x .fst) x=y $ All→∀Has (related→all rx) (x .fst) (has-on-map fst hx)
+                                                                , (given-gt subst (_< x .fst) x=y $ All→∀∈ (related→all rx) (x .fst) (∈-map fst hx)
                                                                      return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy″ → lookup-kv (x .fst) ys ＝ just vy″)
                                                                      then id) ey″
                                                                 , ly″)
                                      a))
   ... | GT y<x = kvdrop (sub→KV≤ (∷ˢ rx)
                                  ((vy′ , (ey , ly))
-                                  ∷ all-has-map (λ {x} hx → λ where
+                                  ∷ all-∈-map (λ {x} hx → λ where
                                                                (vy″ , ey″ , ly″) →
                                                                     vy″
-                                                                  , (given-gt y<x ∙ All→∀Has (related→all rx) (x .fst) (has-on-map fst hx)
+                                                                  , (given-gt y<x ∙ All→∀∈ (related→all rx) (x .fst) (∈-map fst hx)
                                                                        return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy″ → lookup-kv (x .fst) ys ＝ just vy″)
                                                                        then id) ey″
                                                                   , ly″)
@@ -157,12 +157,12 @@ module KVList.Ord
     ∙ ap (kvtake e₂ l₂) (KV≤-prop (related→sorted ry) xy₁ xy₂)
   KV≤-prop (∷ˢ ry) (kvtake e₁ l₁ xy₁) (kvdrop xy₂)       =
     let vel = all-head $ KV≤→sub (related→sorted ry) xy₂
-        lt = All→∀Has (related→all ry) _ (lookup-has (vel .snd .fst))
+        lt = All→∀∈ (related→all ry) _ (lookup-has (vel .snd .fst))
       in
     absurd (<→≠ lt (e₁ ⁻¹))
   KV≤-prop (∷ˢ ry) (kvdrop xy₁)       (kvtake e₂ l₂ xy₂) =
     let vel = all-head $ KV≤→sub (related→sorted ry) xy₁
-        lt = All→∀Has (related→all ry) _ (lookup-has (vel .snd .fst))
+        lt = All→∀∈ (related→all ry) _ (lookup-has (vel .snd .fst))
       in
     absurd (<→≠ lt (e₂ ⁻¹))
   KV≤-prop (∷ˢ ry) (kvdrop xy₁)       (kvdrop xy₂)       =
@@ -173,7 +173,7 @@ module KVList.Ord
   upsert-≤ : {f : V → V → V} {k : K} {v : V} {xs : List (K × V)}
            → (∀ x → x ≤ f x v)
            → xs ≤kv upsert-kv f k v xs
-  upsert-≤         {xs = []}             fle = KV≤-l
+  upsert-≤         {xs = []}             fle = KV≤-init
   upsert-≤ {k} {v} {xs = (kx , vx) ∷ xs} fle with trisect k kx
   ... | LT _ = kvdrop KV≤-refl
   ... | EQ e = kvtake (e ⁻¹) (fle vx) KV≤-refl
@@ -194,8 +194,8 @@ module KVList.Ord
                  → (∀ x y → (x ≤ f x y) × (y ≤ f x y))
                  → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
                  → (xs ≤kv union-kv f xs ys) × (ys ≤kv union-kv f xs ys)
-  union-≤-lr-aux      []               _               _    _        = KV≤-l , KV≤-refl
-  union-≤-lr-aux     ((kx , vx) ∷ xs)  []              _    _        = KV≤-refl , KV≤-l
+  union-≤-lr-aux      []               _               _    _        = KV≤-init , KV≤-refl
+  union-≤-lr-aux     ((kx , vx) ∷ xs)  []              _    _        = KV≤-refl , KV≤-init
   union-≤-lr-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) fle (acc rec) with trisect kx ky
   ... | LT x<y =
     let (ihl , ihr) = union-≤-lr-aux {f = f} xs ((ky , vy) ∷ ys)
@@ -229,7 +229,7 @@ module KVList.Ord
   union-≤-lr : {f : V → V → V} {xs ys : List (K × V)}
              → (∀ x y → (x ≤ f x y) × (y ≤ f x y))
              → (xs ≤kv union-kv f xs ys) × (ys ≤kv union-kv f xs ys)
-  union-≤-lr {f} {xs} {ys} fle = union-≤-lr-aux {f = f} xs ys fle (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
+  union-≤-lr {f} {xs} {ys} fle = union-≤-lr-aux {f = f} xs ys fle (acc-lift length (xs ++ ys) (<-is-wf (length (xs ++ ys))))
 
   union-≤-least : {f : V → V → V} (xs ys ub : List (K × V))
                 → Is-kvlist ub
@@ -249,7 +249,7 @@ module KVList.Ord
                   fle xle yle)
   union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvtake ex lx xle) (kvdrop yle)       =
     let vel = all-head $ KV≤→sub (related→sorted ru) yle
-        lu = All→∀Has (related→all ru) ky (lookup-has (vel .snd .fst))
+        lu = All→∀∈ (related→all ru) ky (lookup-has (vel .snd .fst))
       in
     given-lt subst (_< ky) (ex ⁻¹) lu
        return (λ q → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
@@ -262,7 +262,7 @@ module KVList.Ord
                  fle xle yle)
   union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvdrop xle)       (kvtake ey ly yle) =
     let vel = all-head $ KV≤→sub (related→sorted ru) xle
-        lu = All→∀Has (related→all ru) kx (lookup-has (vel .snd .fst))
+        lu = All→∀∈ (related→all ru) kx (lookup-has (vel .snd .fst))
       in
     given-gt subst (_< kx) (ey ⁻¹) lu
        return (λ q → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
@@ -297,8 +297,8 @@ module KVList.Ord
                  → (∀ x y → (f x y ≤ x) × (f x y ≤ y))
                  → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
                  → (inter-kv f xs ys ≤kv xs) × (inter-kv f xs ys ≤kv ys)
-  inter-≤-lr-aux     []                ys              fle ac        = kvdone , KV≤-l
-  inter-≤-lr-aux     (_ ∷ _)           []              fle ac        = KV≤-l , kvdone
+  inter-≤-lr-aux     []                ys              fle ac        = kvdone , KV≤-init
+  inter-≤-lr-aux     (_ ∷ _)           []              fle ac        = KV≤-init , kvdone
   inter-≤-lr-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) fle (acc rec) with trisect kx ky
   ... | LT x<y =
     let (ihl , ihr) = inter-≤-lr-aux {f = f} xs ((ky , vy) ∷ ys)
@@ -332,7 +332,7 @@ module KVList.Ord
   inter-≤-lr : {f : V → V → V} {xs ys : List (K × V)}
              → (∀ x y → (f x y ≤ x) × (f x y ≤ y))
              → (inter-kv f xs ys ≤kv xs) × (inter-kv f xs ys ≤kv ys)
-  inter-≤-lr {f} {xs} {ys} fle = inter-≤-lr-aux {f = f} xs ys fle (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
+  inter-≤-lr {f} {xs} {ys} fle = inter-≤-lr-aux {f = f} xs ys fle (acc-lift length (xs ++ ys) (<-is-wf (length (xs ++ ys))))
 
   inter-≤-greatest-aux : {f : V → V → V} (xs ys lb : List (K × V))
                        → Acc (λ x y → length x <ⁿ length y) (xs ++ ys)
@@ -360,7 +360,7 @@ module KVList.Ord
                  fle xle yle)
   inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) .((kl , vl) ∷ lb) (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvtake {kx = kl} {vx = vl} {xs = lb} ex lx xle) (kvdrop yle)                                     =
     let vel = all-head $ KV≤→sub (related→sorted ry) yle
-        ll = All→∀Has (related→all ry) kl (lookup-has (vel .snd .fst))
+        ll = All→∀∈ (related→all ry) kl (lookup-has (vel .snd .fst))
       in
     given-gt subst (ky <_) ex ll
        return (λ q → ((kl , vl) ∷ lb) ≤kv recᵗ (inter-kv f xs ((ky , vy) ∷ ys))
@@ -379,7 +379,7 @@ module KVList.Ord
                fle (kvtake ex lx xle) yle
   inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) .((kl , vl) ∷ lb) (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvdrop xle)                                     (kvtake {kx = kl} {vx = vl} {xs = lb} ey ly yle) =
     let vel = all-head $ KV≤→sub (related→sorted rx) xle
-        ll = All→∀Has (related→all rx) kl (lookup-has (vel .snd .fst))
+        ll = All→∀∈ (related→all rx) kl (lookup-has (vel .snd .fst))
       in
     given-lt subst (kx <_) ey ll
        return (λ q → ((kl , vl) ∷ lb) ≤kv recᵗ (inter-kv f xs ((ky , vy) ∷ ys))
@@ -421,4 +421,4 @@ module KVList.Ord
                    → (∀ x y z → z ≤ x → z ≤ y → z ≤ f x y)
                    → lb ≤kv xs → lb ≤kv ys → lb ≤kv inter-kv f xs ys
   inter-≤-greatest {f} {xs} {ys} {lb} =
-    inter-≤-greatest-aux {f} xs ys lb (Acc-on length (xs ++ ys) (<-wf (length (xs ++ ys))))
+    inter-≤-greatest-aux {f} xs ys lb (acc-lift length (xs ++ ys) (<-is-wf (length (xs ++ ys))))
