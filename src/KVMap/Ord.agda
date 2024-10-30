@@ -12,7 +12,7 @@ import Order.Diagram.Meet.Reasoning as Meets
 open import Data.List.Correspondences.Unary.Related
 
 import KVList
-import KVList.Ord
+import KVList.Ord as Ord
 open import KVMap
 
 module KVMap.Ord
@@ -26,7 +26,7 @@ module KVMap.Ord
   open Poset V≤ renaming (Ob to V)
   open is-trichotomous d hiding (Ob ; _<_ ; <-asym ; <-trans ; <→≠)
   open KVList.Ops {K< = K<} {V = V}
-  open KVList.Ord {K< = K<} {V≤ = V≤}
+  open Ord {K< = K<} {V≤ = V≤}
   open KVMap.KVMap
   open KVOps
 
@@ -36,8 +36,7 @@ module KVMap.Ord
   kv-poset .Poset.≤-thin {y} = KV≤-prop (y .inv)
   kv-poset .Poset.≤-refl = KV≤-refl
   kv-poset .Poset.≤-trans = KV≤-trans
-  kv-poset .Poset.≤-antisym {y = kvmap _ iy} xy yx =
-    ap² kvmap (KV≤-antisym xy yx) (to-pathᴾ (hlevel 1 _ iy))
+  kv-poset .Poset.≤-antisym xy yx = kv-ext K< V (KV≤-antisym xy yx)
 
   kv-bot : Bottom kv-poset
   kv-bot .Bottom.bot = emptym K< V
