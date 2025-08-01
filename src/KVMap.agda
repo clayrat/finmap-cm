@@ -78,8 +78,3 @@ module KVOps
   interm : (V → V → V) → KVMap K< V → KVMap K< V → KVMap K< V
   interm f l r .kv  = inter-kv f (l .kv) (r .kv)
   interm f l r .inv = Is-kvlist-inter (l .inv) (r .inv)
-
-  -- properties
-
-  kv-ext : {kv₁ kv₂ : KVMap K< V} → kv₁ .kv ＝ kv₂ .kv → kv₁ ＝ kv₂
-  kv-ext {kv₂ = kvmap _ inv₂} e = ap² kvmap e (to-pathᴾ (hlevel 1 _ inv₂))
