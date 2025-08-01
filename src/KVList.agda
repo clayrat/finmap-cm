@@ -1,4 +1,6 @@
+{-# OPTIONS --safe #-}
 open import Prelude
+open import Meta.Effect
 
 open import Order.Strict
 open import Order.Trichotomous
@@ -7,13 +9,13 @@ open import Data.Empty
 open import Data.Nat.Properties
 open import Data.Nat.Order.Base renaming (_<_ to _<ⁿ_ ; <-trans to <ⁿ-trans ; <-asym to <ⁿ-asym ; <→≠ to <ⁿ→≠)
 open import Data.Bool renaming (elim to elimᵇ ; rec to recᵇ)
-open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ)
+open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ ; has to hasᵐ ; Reflects-has to Reflects-hasᵐ)
 open import Data.Dec
 open import Data.Reflects
 open import Data.Dec.Tri renaming (elim to elimᵗ ; rec to recᵗ)
 open import Data.Acc
 
-open import Data.List
+open import Data.List as List
 open import Data.List.Operations.Properties
 open import Data.List.Operations.Discrete
 open import Data.List.Correspondences.Unary.All
@@ -104,14 +106,31 @@ module KVList
          return (λ q → recᵗ nothing (just v₀) (lookup-kv k xs) q ＝ nothing)
          then refl
 
-    lookup-has : ∀ {k v xs}
+    lookup→has : ∀ {k v xs}
                → lookup-kv k xs ＝ just v {- is-just ? -}
                → k ∈ keys xs
-    lookup-has {k} {v} {xs = []}             eq = false! eq
-    lookup-has {k} {v} {xs = (k₀ , v₀) ∷ xs} eq with trisect k k₀
+    lookup→has {k} {v} {xs = []}             eq = false! eq
+    lookup→has {k} {v} {xs = (k₀ , v₀) ∷ xs} eq with trisect k k₀
     ... | LT _    = false! eq
     ... | EQ k=k₀ = here k=k₀
-    ... | GT _    = there (lookup-has eq)
+    ... | GT _    = there (lookup→has eq)
+
+    lookup←has : ∀ {k xs}
+               → Is-kvlist xs
+               → k ∈ keys xs
+               → Σ[ v ꞉ V ] (v ∈ values xs) × (lookup-kv k xs ＝ just v) {- v ∈ lookup-kv k xs -}
+    lookup←has {k} {xs = (k₀ , v₀) ∷ xs} _      (here e)   =
+        v₀
+      , here refl
+      , (given-eq e
+           return (λ q → recᵗ nothing (just v₀) (lookup-kv k xs) q ＝ just v₀)
+           then refl)
+    lookup←has {k} {xs = (k₀ , v₀) ∷ xs} (∷ˢ r) (there hk) with trisect k k₀
+    ... | LT k<k₀ = absurd (<-asym k<k₀ (All→∀∈ (related→all r) k hk))
+    ... | EQ k=k₀ = v₀ , here refl , refl
+    ... | GT k>k₀ =
+      let (v , v∈ , eq) = lookup←has (related→sorted r) hk in
+      v , there v∈ , eq
 
     lookup-not-has : ∀ {k xs}
                    → k ∉ keys xs → lookup-kv k xs ＝ nothing {- is-nothing? -}
@@ -218,6 +237,26 @@ module KVList
         then refl
     kvlist-upsert-lookup {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} k′ | GT k₀<k | GT y<x   =
       kvlist-upsert-lookup {xs = xs} k′
+
+    kvlist-upsert-related : ∀ {f : V → V → V} {k : K} {v : V} {xs : List (K × V)}
+                          → Related _<_ k (keys xs)
+                          → upsert-kv f k v xs ＝ (k , v) ∷ xs
+    kvlist-upsert-related             {xs = []}              _          = refl
+    kvlist-upsert-related {f} {k} {v} {xs = (k₀ , v₀) ∷ xs} (k<k₀ ∷ʳ r) =
+      given-lt k<k₀
+         return (λ q →
+            recᵗ ((k , v) ∷ (k₀ , v₀) ∷ xs) ((k , f v₀ v) ∷ xs) ((k₀ , v₀) ∷ upsert-kv f k v xs) q ＝ (k , v) ∷ (k₀ , v₀) ∷ xs)
+         then refl
+
+    kvlist-upsert-elim : ∀ {ℓ′} {P : List (K × V) → 𝒰 ℓ′}
+            → P []
+            → (∀ {k : K} {v : V} (ls : List (K × V)) → Related _<_ k (keys ls) → P ls → P (upsert-kv (λ _ → id) k v ls))
+            → ∀ ls → Is-kvlist ls → P ls
+    kvlist-upsert-elim pe pih []                  ik    = pe
+    kvlist-upsert-elim {P} pe pih ((k , v) ∷ ls) (∷ˢ r) =
+      subst P (kvlist-upsert-related r) $
+      pih {v = v} ls r $
+      kvlist-upsert-elim pe pih ls (related→sorted r)
 
   -- remove
 

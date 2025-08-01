@@ -1,3 +1,4 @@
+{-# OPTIONS --safe #-}
 module KVMap where
 
 open import Prelude
@@ -11,7 +12,7 @@ open import Data.List.Correspondences.Unary.Related
 import KVList
 
 private variable
-  ℓᵏ ℓᵛ ℓ : Level
+  ℓᵏ ℓᵛ ℓ ℓ′ : Level
 
 record KVMap
   (K< : StrictPoset ℓᵏ ℓ)
@@ -22,9 +23,21 @@ record KVMap
     kv  : List (⌞ K< ⌟ × V)
     inv : KVList.Is-kvlist {K< = K<} kv
 
-open KVMap
+open KVMap public
 
 unquoteDecl KVMap-iso = declare-record-iso KVMap-iso (quote KVMap)
+
+module KVProp
+  (K< : StrictPoset ℓᵏ ℓ)
+  (V : 𝒰 ℓᵛ)
+  where
+
+  open StrictPoset K< renaming (Ob to K)
+  open KVList
+  open KVList.Ops
+
+  kv-ext : {kv₁ kv₂ : KVMap K< V} → kv₁ .kv ＝ kv₂ .kv → kv₁ ＝ kv₂
+  kv-ext {kv₂ = kvmap _ inv₂} e = ap² kvmap e (to-pathᴾ (hlevel 1 _ inv₂))
 
 module KVOps
   (K< : StrictPoset ℓᵏ ℓ)
@@ -36,6 +49,9 @@ module KVOps
   open KVList
   open KVList.Ops
 
+  keysm : KVMap K< V → List K
+  keysm m = keys {K< = K<} (m .kv)
+
   emptym : KVMap K< V
   emptym .kv  = empty-kv {K< = K<}
   emptym .inv = Is-kvlist-empty {V = V}
@@ -46,6 +62,10 @@ module KVOps
   upsertm : (V → V → V) → K → V → KVMap K< V → KVMap K< V
   upsertm f k v m .kv  = upsert-kv f k v (m .kv)
   upsertm f k v m .inv = Is-kvlist-upsert (m .inv)
+
+  -- always overwrite
+  insertm : K → V → KVMap K< V → KVMap K< V
+  insertm = upsertm λ _ → id
 
   removem : K → KVMap K< V → KVMap K< V
   removem k m .kv  = remove-kv k (m .kv)

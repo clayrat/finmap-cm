@@ -9,7 +9,7 @@ open import Data.Nat.Properties
 open import Data.Nat.Order.Base renaming ( _<_ to _<ⁿ_ ; <-trans to <ⁿ-trans ; <-asym to <ⁿ-asym       ; <→≠ to <ⁿ→≠
                                          ; _≤_ to _≤ⁿ_ ; ≤-trans to ≤ⁿ-trans ; ≤-antisym to ≤ⁿ-antisym ; ≤-refl to ≤ⁿ-refl)
 open import Data.Bool renaming (elim to elimᵇ ; rec to recᵇ)
-open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ)
+open import Data.Maybe renaming (elim to elimᵐ ; rec to recᵐ ; ∈-map to ∈-mapᵐ)
 open import Data.Dec
 open import Data.Reflects
 open import Data.Dec.Tri renaming (elim to elimᵗ ; rec to recᵗ)
@@ -102,7 +102,7 @@ module KVList.Ord
         (λ {x} → λ where
              (vy′ , ey′ , le′) →
                  vy′
-               , given-gt All→∀∈ (related→all ry) (x .fst) (lookup-has ey′)
+               , given-gt All→∀∈ (related→all ry) (x .fst) (lookup→has ey′)
                    return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
                    then ey′
                , le′)
@@ -112,7 +112,7 @@ module KVList.Ord
       (λ {x} → λ where
              (vy′ , ey′ , le′) →
                   vy′
-                , (given-gt All→∀∈ (related→all ry) (x .fst) (lookup-has ey′)
+                , (given-gt All→∀∈ (related→all ry) (x .fst) (lookup→has ey′)
                    return (λ q → recᵗ nothing (just vy) (lookup-kv (x .fst) ys) q ＝ just vy′)
                    then ey′)
                 , le′)
@@ -157,12 +157,12 @@ module KVList.Ord
     ∙ ap (kvtake e₂ l₂) (KV≤-prop (related→sorted ry) xy₁ xy₂)
   KV≤-prop (∷ˢ ry) (kvtake e₁ l₁ xy₁) (kvdrop xy₂)       =
     let vel = all-head $ KV≤→sub (related→sorted ry) xy₂
-        lt = All→∀∈ (related→all ry) _ (lookup-has (vel .snd .fst))
+        lt = All→∀∈ (related→all ry) _ (lookup→has (vel .snd .fst))
       in
     absurd (<→≠ lt (e₁ ⁻¹))
   KV≤-prop (∷ˢ ry) (kvdrop xy₁)       (kvtake e₂ l₂ xy₂) =
     let vel = all-head $ KV≤→sub (related→sorted ry) xy₁
-        lt = All→∀∈ (related→all ry) _ (lookup-has (vel .snd .fst))
+        lt = All→∀∈ (related→all ry) _ (lookup→has (vel .snd .fst))
       in
     absurd (<→≠ lt (e₂ ⁻¹))
   KV≤-prop (∷ˢ ry) (kvdrop xy₁)       (kvdrop xy₂)       =
@@ -249,7 +249,7 @@ module KVList.Ord
                   fle xle yle)
   union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvtake ex lx xle) (kvdrop yle)       =
     let vel = all-head $ KV≤→sub (related→sorted ru) yle
-        lu = All→∀∈ (related→all ru) ky (lookup-has (vel .snd .fst))
+        lu = All→∀∈ (related→all ru) ky (lookup→has (vel .snd .fst))
       in
     given-lt subst (_< ky) (ex ⁻¹) lu
        return (λ q → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
@@ -262,7 +262,7 @@ module KVList.Ord
                  fle xle yle)
   union-≤-least {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) ((ku , vu) ∷ ub) (∷ˢ ru) fle (kvdrop xle)       (kvtake ey ly yle) =
     let vel = all-head $ KV≤→sub (related→sorted ru) xle
-        lu = All→∀∈ (related→all ru) kx (lookup-has (vel .snd .fst))
+        lu = All→∀∈ (related→all ru) kx (lookup→has (vel .snd .fst))
       in
     given-gt subst (_< kx) (ey ⁻¹) lu
        return (λ q → recᵗ ((kx , vx) ∷ union-kv f xs ((ky , vy) ∷ ys))
@@ -360,7 +360,7 @@ module KVList.Ord
                  fle xle yle)
   inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) .((kl , vl) ∷ lb) (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvtake {kx = kl} {vx = vl} {xs = lb} ex lx xle) (kvdrop yle)                                     =
     let vel = all-head $ KV≤→sub (related→sorted ry) yle
-        ll = All→∀∈ (related→all ry) kl (lookup-has (vel .snd .fst))
+        ll = All→∀∈ (related→all ry) kl (lookup→has (vel .snd .fst))
       in
     given-gt subst (ky <_) ex ll
        return (λ q → ((kl , vl) ∷ lb) ≤kv recᵗ (inter-kv f xs ((ky , vy) ∷ ys))
@@ -379,7 +379,7 @@ module KVList.Ord
                fle (kvtake ex lx xle) yle
   inter-≤-greatest-aux {f} ((kx , vx) ∷ xs) ((ky , vy) ∷ ys) .((kl , vl) ∷ lb) (acc rec) (∷ˢ rx) (∷ˢ ry) fle (kvdrop xle)                                     (kvtake {kx = kl} {vx = vl} {xs = lb} ey ly yle) =
     let vel = all-head $ KV≤→sub (related→sorted rx) xle
-        ll = All→∀∈ (related→all rx) kl (lookup-has (vel .snd .fst))
+        ll = All→∀∈ (related→all rx) kl (lookup→has (vel .snd .fst))
       in
     given-lt subst (kx <_) ey ll
        return (λ q → ((kl , vl) ∷ lb) ≤kv recᵗ (inter-kv f xs ((ky , vy) ∷ ys))
